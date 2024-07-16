@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자기소개서와 오목 게임</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: url('https://img4.yna.co.kr/photo/ap/2011/09/12/PAP20110912234101034_P4.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+        #intro {
+            max-width: 600px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.8); /* 투명도 조절 */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        }
+        #gomoku-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+        #gomoku-board {
+            border: 2px solid #333;
+            background-color: rgba(255, 255, 255, 0.8); /* 반투명 배경 */
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+        .row {
+            display: flex;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+        .black {
+            background-color: #333;
+            border-radius: 50%;
+        }
+        .white {
+            background-color: #f0f0f0;
+            border-radius: 50%;
+        }
+        .message {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="intro">
+        <h1>자기소개서</h1>
+        <div>
+            <p><span class="highlight">안녕하세요!</span> 저는 김정혁 이라고 합니다. 18살의 학생으로 현재 사동 고등학교에서 학생의 규칙을 지키며 학교생활을 하고 있습니다.</p>
+            
+            <p>제 <span class="highlight">저의 MBTI</span>는 ISTP이고 주로 하는 취미 활동은 게임이나 웹툰을 보는 것 입니다.</p>
+            
+            <p>저는 주로 집안에서 휴식하는 것을 좋아하나 친구들과 함께 놀러가는것도 좋아하는 편입니다.</p>
+            
+            <p>제 인스타 아이디는 <a href="https://www.instagram.com/jeonghyeok07/?hl=ko" target="_blank" rel="noopener noreferrer" class="highlight">jeonghyeok07</a>이며 전화번호는 010-xxxx-xxxx입니다 언제든지 연락주세요. 감사합니다.</p>
+        </div>
+    </div>
+
+    <div id="gomoku-container">
+        <div id="gomoku-board"></div>
+        <div class="message" id="message">오목 게임을 시작하세요!</div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 15;
+        let currentPlayer = 'black';
+        let gameBoard = [];
+        let gameOver = false;
+
+        const boardElement = document.getElementById('gomoku-board');
+        const messageElement = document.getElementById('message');
+
+        // 오목판 생성
+        for (let i = 0; i < BOARD_SIZE; i++) {
+            const row = document.createElement('div');
+            row.classList.add('row');
+            gameBoard.push([]);
+            for (let j = 0; j < BOARD_SIZE; j++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.row = i;
+                cell.dataset.col = j;
+                cell.addEventListener('click', handleClick);
+                row.appendChild(cell);
+                gameBoard[i].push(null);
+            }
+            boardElement.appendChild(row);
+        }
+
+        // 클릭 이벤트 핸들러
+        function handleClick(event) {
+            if (gameOver) return;
+            const row = parseInt(event.target.dataset.row);
+            const col = parseInt(event.target.dataset.col);
+            if (gameBoard[row][col] === null) {
+                const colorClass = currentPlayer === 'black' ? 'black' : 'white';
+                event.target.classList.add(colorClass);
+                gameBoard[row][col] = currentPlayer;
+                if (checkWin(row, col)) {
+                    gameOver = true;
+                    messageElement.textContent = `${currentPlayer === 'black' ? '흑' : '백'}돌이 이겼습니다!`;
+                } else {
+                    currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+                    if (currentPlayer === 'white') {
+                        makeAiMove();
+                    }
+                }
+            }
+        }
+
+        // AI가 돌을 놓는 함수
+        function makeAiMove() {
+            let bestRow, bestCol;
+            let bestScore = -Infinity;
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (gameBoard[i][j] === null) {
+                        gameBoard[i][j] = 'white';
+                        let score = evaluateBoard(i, j, 'white');
+                        gameBoard[i][j] = null;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestRow = i;
+                            bestCol = j;
+                        }
+                    }
+                }
+            }
+            const aiMoveCell = document.querySelector(`.cell[data-row="${bestRow}"][data-col="${bestCol}"]`);
+            aiMoveCell.click();
+        }
+
+        // 보드 평가 함수
+        function evaluateBoard(row, col, color) {
+            let score = 0;
+            score += scorePosition(row, col, 1, 0, color) + scorePosition(row, col, -1, 0, color); // 수평 방향
+            score += scorePosition(row, col, 0, 1, color) + scorePosition(row, col, 0, -1, color); // 수직 방향
+            score += scorePosition(row, col, 1, 1, color) + scorePosition(row, col, -1, -1, color); // 대각선 방향 (우하향)
+            score += scorePosition(row, col, 1, -1, color) + scorePosition(row, col, -1, 1, color); // 대각선 방향 (우상향)
+            return score;
+        }
+
+        // 위치 평가 함수
+        function scorePosition(row, col, deltaRow, deltaCol, color) {
+            let countOwn = 1; // 자신의 돌 개수
+            let countOpponent = 0; // 상대방 돌 개수
+            let score = 0;
+
+            let r = row + deltaRow;
+            let c = col + deltaCol;
+
+            // 오른쪽 방향으로 검사
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameBoard[r][c] === color) {
+                countOwn++;
+                r += deltaRow;
+                c += deltaCol;
+            }
+
+            // 다시 초기 위치로 돌아와 왼쪽 방향으로 검사
+            r = row - deltaRow;
+            c = col - deltaCol;
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameBoard[r][c] === color) {
+                countOwn++;
+                r -= deltaRow;
+                c -= deltaCol;
+            }
+
+            // 한 칸 더 이동해서 상대방 돌 확인
+            r = row + deltaRow * 2;
+            c = col + deltaCol * 2;
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameBoard[r][c] !== null && gameBoard[r][c] !== color) {
+                countOpponent++;
+                r += deltaRow;
+                c += deltaCol;
+            }
+
+            // 5목인 경우
+            if (countOwn === 5) return Infinity;
+            // 상대방이 4목이면 막기
+            if (countOpponent === 4) return 10000;
+            // 상대방이 3목이면 막기
+            if (countOpponent === 3) return 100;
+            // 자신의 3목이면 공격
+            if (countOwn === 3) return 10;
+            // 자신의 2목이면 공격
+            if (countOwn === 2) return 1;
+
+            return 0;
+        }
+
+        // 승리 조건 확인
+        function checkWin(row, col) {
+            if (checkDirection(row, col, 1, 0) ||
+                checkDirection(row, col, 0, 1) ||
+                checkDirection(row, col, 1, 1) ||
+                checkDirection(row, col, 1, -1)) {
+                return true;
+            }
+            return false;
+        }
+
+        // 특정 방향으로 연속된 돌의 개수를 확인하는 함수
+        function checkDirection(row, col, deltaRow, deltaCol) {
+            const color = gameBoard[row][col];
+            let count = 1 + countStonesInDirection(row, col, deltaRow, deltaCol, color) +
+                countStonesInDirection(row, col, -deltaRow, -deltaCol, color);
+            return count >= 5;
+        }
+
+        // 특정 방향으로 연속된 돌의 개수를 세는 함수
+        function countStonesInDirection(row, col, deltaRow, deltaCol, color) {
+            let count = 0;
+            let r = row + deltaRow;
+            let c = col + deltaCol;
+            while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && gameBoard[r][c] === color) {
+                count++;
+                r += deltaRow;
+                c += deltaCol;
+            }
+            return count;
+        }
+    </script>
+</body>
+</html>
